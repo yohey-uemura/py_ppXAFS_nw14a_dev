@@ -14,12 +14,14 @@ import silx.gui.colors as silxcolors
 from silx.gui.plot import PlotWindow, Plot1D, Plot2D, PlotWidget,items
 import silx.gui.colors as silxcolors
 
+countlimit = 1e3
+_t = 1000
 
 class Ui(qt.QMainWindow):
     def __init__(self):
         super(Ui, self).__init__() # Call the inherited classes __init__ metho
         uic.loadUi('MainWindow.ui', self)
-		
+
         self.plot_xas = PlotWindow(control = True)
         print (self.plot_xas.getConsoleAction())
         layout = qt.QVBoxLayout()
@@ -52,11 +54,36 @@ class Ui(qt.QMainWindow):
         self.energy,self.r_stdev_ut_star, self.r_stdev_ut = [], [], []
         self.rbs = qt.QButtonGroup()
 
+        self.qtimer = qt.QBasicTimer()
+        self.counter = 0
+
         if sys.platform == 'win32':
             self.home_dir = os.environ['HOMEPATH']
         else:
             self.home_dir = os.environ['HOME']
 
+        def strFilter():
+            if self.rB_escan.isChecked():
+                self.lE_filter.clear()
+                self.lE_filter.setText('01001')
+            elif self.rB_tscan.isChecked():
+                self.lE_filter.clear()
+                self.lE_filter.setText('\d{3}')
+
+        self.rB_escan.toggled.connect(strFilter)
+        self.rB_tscan.toggled.connect(strFilter)
+
+        def selectDir():
+            if self.lineEdit.text()=="" or not os.path.isdir(self.lineEdit.text()):
+                dat_dir = self.home_dir
+            elif os.path.isdir(self.lineEdit.text()):
+                dat_dir = self.lineEdit.text()
+            FO_dialog = qt.QFileDialog(self)
+            f = FO_dialog.getExistingDirectory(self, "Select a directory", dat_dir,)
+            if f:
+                self.lineEdit.clear()
+                self.lineEdit.setText(f)
+        
         def openFiles():
             self.sumI0 = []
             self.sumI1 = []
@@ -107,6 +134,8 @@ class Ui(qt.QMainWindow):
             #     params.rbs.buttons()[0].toggle()
 
         self.pushButton.clicked.connect(openFiles)
+        self.pushButton_2.clicked.connect(selectDir)
+        self.checkBox.toggled.connect(self.DoAction)
         self.show()
         
     def extract_data(self):
@@ -132,8 +161,9 @@ class Ui(qt.QMainWindow):
                         I0 = []
                         I1 = []
                         I2 = []
+                        _label = 'SetEne'*self.rB_escan.isChecked() + 'setdelay'*self.rB_tscan.isChecked() 
                         if i == 0:
-                            energy = Fdat['SetEne'].values
+                            energy = Fdat[_label].values
                         I0 = Fdat['I0'].values
                         I1 = Fdat[self.Ipos].values
                         I2 = Fdat[self.Ineg].values
@@ -147,7 +177,7 @@ class Ui(qt.QMainWindow):
                             delta_mt = np.zeros(len(I0))
                         print (len(I0), len(sumI0))
                         if len(I0) != len(sumI0):
-                            cb.setCheckState(QtCore.Qt.Unchecked)
+                            cb.setCheckState(qt.Qt.Unchecked)
                             cb.setEnabled(False)
                         else:
                             sumI0 += np.array(I0)
@@ -178,7 +208,8 @@ class Ui(qt.QMainWindow):
     def func_pB11(self):
         self.sumI0, self.sumI1, self.sumI2, self.energy,self.r_stdev_ut_star, self.r_stdev_ut = self.extract_data()
         if not 'NoneType' in str(type(self.sumI0)):
-            self.plotXANES(self.sumI0, self.sumI1, self.sumI2, self.energy)
+            yerr = np.sqrt(self.r_stdev_ut_star**2 + self.r_stdev_ut**2)
+            self.plotXANES(self.sumI0, self.sumI1, self.sumI2, yerr, self.energy)
         else:
             msg = qt.QMessageBox()
             msg.setIcon(qt.QMessageBox.Warning)
@@ -186,16 +217,27 @@ class Ui(qt.QMainWindow):
             msg.setStandardButtons(qt.QMessageBox.Ok)
             msg.exec_()
 
-    def plotXANES(self, I0,I1,I2,energy):
+    def plotXANES(self, I0,I1,I2, _yerror, energy):
         self.plot_xas.remove(kind=('curve'))
-        xas_pos = I1/I0
-        xas_pos = (xas_pos-xas_pos[:self.spinBox.value()].mean())/(xas_pos[-self.spinBox.value():].mean()-xas_pos[:self.spinBox.value()].mean())
+        if self.rB_escan.isChecked():
+            xas_pos = I1/I0
+            xas_pos = (xas_pos-xas_pos[:self.spinBox.value()].mean())/(xas_pos[-self.spinBox.value():].mean()-xas_pos[:self.spinBox.value()].mean())
 
-        xas_neg = I2/I0
-        xas_neg = (xas_neg-xas_neg[:self.spinBox.value()].mean())/(xas_neg[-self.spinBox.value():].mean()-xas_neg[:self.spinBox.value()].mean())
-        self.plot_xas.addCurve(energy, xas_pos,legend="pos")
-        self.plot_xas.addCurve(energy, xas_neg, legend="neg")
-        self.plot_xas.addCurve(energy, xas_pos-xas_neg, legend="diff",yaxis='right')
+            xas_neg = I2/I0
+            xas_neg = (xas_neg-xas_neg[:self.spinBox.value()].mean())/(xas_neg[-self.spinBox.value():].mean()-xas_neg[:self.spinBox.value()].mean())
+            self.plot_xas.addCurve(energy, xas_pos,legend="pos", symbol = 'x')
+            self.plot_xas.addCurve(energy, xas_neg, legend="neg", symbol = 'x')
+            self.plot_xas.addCurve(energy, xas_pos-xas_neg, legend="diff",yaxis='right', symbol = 'o',yerror=_yerror)
+            self.plot_xas.setGraphXLabel('Energy [eV]')
+            print (_yerror)
+        elif self.rB_tscan.isChecked():
+            xas_pos = I1/I0
+
+            xas_neg = I2/I0
+            self.plot_xas.addCurve(energy, xas_pos,legend="pos", symbol = 'x')
+            self.plot_xas.addCurve(energy, xas_neg, legend="neg", symbol = 'x')
+            self.plot_xas.addCurve(energy, xas_pos-xas_neg, legend="diff",yaxis='right', symbol = 'o',yerror=_yerror)
+            self.plot_xas.setGraphXLabel('delay [ps]')
 
     def plot_each_XANES(self):
         #self.Ipos, self.Ineg = [x.rstrip().replace(' ','') for x in self.u.lE_posneg.text().split(',')]
@@ -208,16 +250,117 @@ class Ui(qt.QMainWindow):
         I0 = []
         I1 = []
         I2 = []
-        energy = Fdat['SetEne'].values
+        _label = 'SetEne'*self.rB_escan.isChecked() + 'setdelay'*self.rB_tscan.isChecked() 
+        energy = Fdat[_label].values
         I0 = Fdat['I0'].values
         I1 = Fdat[self.Ipos].values
         I2 = Fdat[self.Ineg].values
 
-        self.plot_xas_each.addCurve(energy, I1/I0,legend='pos')
-        self.plot_xas_each.addCurve(energy, I2/I0,legend='neg')
-        self.plot_xas_each.addCurve(energy, I1/I0-I2/I0,legend='diff',yaxis='right')
-        self.plotI0.addCurve(energy, I0)
+        self.plot_xas_each.addCurve(energy, I1/I0,legend='pos', symbol = 'x')
+        self.plot_xas_each.addCurve(energy, I2/I0,legend='neg', symbol = 'x')
+        self.plot_xas_each.addCurve(energy, I1/I0-I2/I0,legend='diff',yaxis='right', symbol = 'o')
+        self.plotI0.addCurve(energy, I0,linewidth=1.5)
+        _xlabel = self.rB_escan.isChecked()*'Energy [eV]' + self.rB_tscan.isChecked()*'delay [ps]'
+        self.plot_xas_each.setGraphXLabel(_xlabel)
+        self.plotI0.setGraphXLabel(_xlabel)
 
+    def DoAction(self):
+
+        if (not self.checkBox.isChecked()) and self.qtimer.isActive():
+            self.qtimer.stop()
+            msg = qt.QMessageBox()
+            msg.setIcon(qt.QMessageBox.Information)
+            msg.setText("auto-updating finished")
+            msg.setStandardButtons(qt.QMessageBox.Ok)
+            msg.exec_()
+        else:
+            self.qtimer.start(_t,self)
+            self.counter = 0
+            while self.scroll_layout.count() >0:
+                b = self.scroll_layout.takeAt(len(self.cbs)-1)
+                self.cbs.pop()
+                self.rbs.removeButton(self.rbs.buttons()[0])
+                b.widget().deleteLater()
+            msg = qt.QMessageBox()
+            msg.setIcon(qt.QMessageBox.Information)
+            msg.setText("auto-updating started")
+            msg.setStandardButtons(qt.QMessageBox.Ok)
+            qt.QTimer.singleShot(1000, lambda : msg.done(0))
+            msg.exec_()
+
+    def timerEvent(self, e):
+        if self.lineEdit.text() !="" and os.path.isdir(self.lineEdit.text()):
+            n_datfiles = self.scroll_layout.count()
+            pattern = '.+'+self.lE_filter.text()+'\.dat'
+            dat_dir = self.lineEdit.text()
+            files = [ dat_dir+'/'+f for f in os.listdir(dat_dir) if re.match(pattern,f)]
+            # print (files)
+            
+            try:
+                if len(files[:-1]) < 1 and self.counter < countlimit:
+                    self.counter += 1
+                    # print ("No file found")
+                    if self.counter%100 == 0:
+                        print (self.counter)
+                elif len(files[:-1]) >= 1 and len(files[:-1]) > n_datfiles and self.counter < countlimit:
+                    self.sumI0 = []
+                    self.sumI1 = []
+                    self.sumI2 = []
+
+                    while self.scroll_layout.count() >0:
+                        b = self.scroll_layout.takeAt(len(self.cbs)-1)
+                        self.cbs.pop()
+                        self.rbs.removeButton(self.rbs.buttons()[0])
+                        b.widget().deleteLater()
+                    for fname in natsort.natsorted(files)[:-1]:
+                        cb = qt.QCheckBox(os.path.basename(fname))
+                        cb.setObjectName(fname)
+                        self.cbs.append(cb)
+                        cb.toggle()
+                        cb.clicked.connect(self.func_pB11)
+                        rb = qt.QRadioButton()
+                        rb.setObjectName(fname)
+                        rb.toggled.connect(self.plot_each_XANES)
+                        self.rbs.addButton(rb)
+                        widget = qt.QWidget()
+                        hlayout = qt.QHBoxLayout()
+                        widget.setLayout(hlayout)
+                        hlayout.addWidget(cb)
+                        hlayout.addWidget(rb)
+                        self.scroll_layout.addWidget(widget)
+                    self.func_pB11()
+                    _rbs = self.rbs.buttons()
+                    _rbs[-1].toggle()
+                elif self.counter >= countlimit:
+                    msg = qt.QMessageBox()
+                    msg.setIcon(qt.QMessageBox.Warning)
+                    msg.setText("Files are not created/updated.")
+                    msg.setStandardButtons(qt.QMessageBox.Ok)
+                    msg.exec_()
+                    self.qtimer.stop()
+                    self.checkBox.setCheckState(False)
+                else:
+                    self.counter += 1
+                    # print ("No file found")
+                    print ("Files were not updated")
+                    if self.counter%100 == 0:
+                        print (self.counter)
+            except Exception as e:
+                msg = qt.QMessageBox()
+                msg.setIcon(qt.QMessageBox.Warning)
+                msg.setText(str(e))
+                msg.setStandardButtons(qt.QMessageBox.Ok)
+                msg.exec_()
+                self.qtimer.stop()
+                self.checkBox.setCheckState(False)
+        else:
+            msg = qt.QMessageBox()
+            msg.setIcon(qt.QMessageBox.Warning)
+            msg.setText("the data directory is not set.")
+            msg.setStandardButtons(qt.QMessageBox.Ok)
+            msg.exec_()
+            self.checkBox.setCheckState(False)
+            self.qtimer.stop()
 
 if __name__ == '__main__':
 	window = Ui()
