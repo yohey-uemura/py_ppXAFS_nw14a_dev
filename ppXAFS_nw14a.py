@@ -219,6 +219,9 @@ class Ui(qt.QMainWindow):
 
     def plotXANES(self, I0,I1,I2, _yerror, energy):
         self.plot_xas.remove(kind=('curve'))
+        datdir = self.lineEdit.text()
+        # print (os.path.basename(datdir))
+        self.plot_xas.setGraphTitle(os.path.basename(datdir))
         if self.rB_escan.isChecked():
             xas_pos = I1/I0
             xas_pos = (xas_pos-xas_pos[:self.spinBox.value()].mean())/(xas_pos[-self.spinBox.value():].mean()-xas_pos[:self.spinBox.value()].mean())
@@ -232,11 +235,24 @@ class Ui(qt.QMainWindow):
             print (_yerror)
         elif self.rB_tscan.isChecked():
             xas_pos = I1/I0
-
             xas_neg = I2/I0
-            self.plot_xas.addCurve(energy, xas_pos,legend="pos", symbol = 'x')
-            self.plot_xas.addCurve(energy, xas_neg, legend="neg", symbol = 'x')
-            self.plot_xas.addCurve(energy, xas_pos-xas_neg, legend="diff",yaxis='right', symbol = 'o',yerror=_yerror)
+            delays_all = np.round(energy)
+            edelays = np.unique(delays_all)
+            print (edelays)
+            df = {
+                'pos': np.array([]),
+                'neg': np.array([]),
+                'err': np.array([])
+                }
+            for dly in edelays:
+                sel = np.where(np.abs(delays_all - dly) < 1)
+                df['pos'] = np.append(df['pos'],xas_pos[sel].mean())
+                df['neg'] = np.append(df['neg'],xas_neg[sel].mean())
+                df['err'] = np.append(df['err'],np.sqrt((_yerror[sel]**2).sum())/math.sqrt(xas_pos[sel].shape[0]))
+            
+            self.plot_xas.addCurve(edelays, df['pos'], legend="pos", symbol = 'x')
+            self.plot_xas.addCurve(edelays, df['neg'], legend="neg", symbol = 'x')
+            self.plot_xas.addCurve(edelays, df['pos']-df['neg'], legend="diff",yaxis='right', symbol = 'o',yerror=df['err'])
             self.plot_xas.setGraphXLabel('delay [ps]')
 
     def plot_each_XANES(self):
