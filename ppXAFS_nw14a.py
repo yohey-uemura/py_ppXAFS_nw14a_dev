@@ -22,7 +22,7 @@ class Ui(qt.QMainWindow):
         super(Ui, self).__init__() # Call the inherited classes __init__ metho
         uic.loadUi('MainWindow.ui', self)
 
-        self.plot_xas = PlotWindow(control = True,position=True)
+        self.plot_xas = PlotWindow(control = True)
         print (self.plot_xas.getConsoleAction())
         layout = qt.QVBoxLayout()
         self.widget.setLayout(layout)
@@ -201,15 +201,16 @@ class Ui(qt.QMainWindow):
         if sumI0.sum() != 0:
             return sumI0, sumI1, sumI2, np.array(energy),\
                    np.std(np.array(each_ut_star),axis=0)/math.sqrt(len(checkedCB_objN)),\
-                   np.std(np.array(each_ut),axis=0)/math.sqrt(len(checkedCB_objN))
+                   np.std(np.array(each_ut),axis=0)/math.sqrt(len(checkedCB_objN)),\
+                   np.array(each_ut_star), np.array(each_ut)
         else:
             [None]*6
 
     def func_pB11(self):
-        self.sumI0, self.sumI1, self.sumI2, self.energy,self.r_stdev_ut_star, self.r_stdev_ut = self.extract_data()
+        self.sumI0, self.sumI1, self.sumI2, self.energy,self.r_stdev_ut_star, self.r_stdev_ut, self.each_xas_on, self.each_xas_off = self.extract_data()
         if not 'NoneType' in str(type(self.sumI0)):
-            yerr = np.sqrt(self.r_stdev_ut_star**2 + self.r_stdev_ut**2)
-            self.plotXANES(self.sumI0, self.sumI1, self.sumI2, yerr, self.energy)
+            # yerr = np.sqrt(self.r_stdev_ut_star**2 + self.r_stdev_ut**2)
+            self.plotXANES(self.sumI0, self.sumI1, self.sumI2, self.each_xas_on, self.each_xas_off, self.energy)
         else:
             msg = qt.QMessageBox()
             msg.setIcon(qt.QMessageBox.Warning)
@@ -217,7 +218,7 @@ class Ui(qt.QMainWindow):
             msg.setStandardButtons(qt.QMessageBox.Ok)
             msg.exec_()
 
-    def plotXANES(self, I0,I1,I2, _yerror, energy):
+    def plotXANES(self, I0, I1, I2, arr_xas_on, arr_xas_off, energy):
         self.plot_xas.remove(kind=('curve'))
         datdir = self.lineEdit.text()
         # print (os.path.basename(datdir))
@@ -230,10 +231,16 @@ class Ui(qt.QMainWindow):
             xas_neg = (xas_neg-xas_neg[:self.spinBox.value()].mean())/(xas_neg[-self.spinBox.value():].mean()-xas_neg[:self.spinBox.value()].mean())
             self.plot_xas.addCurve(energy, xas_pos,legend="pos", symbol = 'x')
             self.plot_xas.addCurve(energy, xas_neg, legend="neg", symbol = 'x')
-            #self.plot_xas.addCurve(energy, xas_pos-xas_neg, legend="diff",yaxis='right', symbol = 'o',yerror=_yerror)
-            self.plot_xas.addCurve(energy, xas_pos-xas_neg, legend="diff",yaxis='right', symbol = 'o')
+
+            each_xas_on_norm = (arr_xas_on-np.vstack(arr_xas_on[:,:self.spinBox.value()].mean(axis=1)))/np.vstack(arr_xas_on[:,-self.spinBox.value():].mean(axis=1)-arr_xas_on[:,:self.spinBox.value()].mean(axis=1))
+            each_xas_off_norm = (arr_xas_off-np.vstack(arr_xas_off[:,:self.spinBox.value()].mean(axis=1)))/np.vstack(arr_xas_off[:,-self.spinBox.value():].mean(axis=1)-arr_xas_off[:,:self.spinBox.value()].mean(axis=1))
+
+            diff_xas = each_xas_on_norm.mean(axis=0) - each_xas_off_norm.mean(axis=0)
+            err_diff_xas = np.std(each_xas_on_norm - each_xas_off_norm,axis=0)/np.sqrt(each_xas_on_norm.shape[0])
+            
+            self.plot_xas.addCurve(energy, diff_xas, legend="diff",yaxis='right', symbol = 'o',yerror=err_diff_xas)
             self.plot_xas.setGraphXLabel('Energy [eV]')
-            print (_yerror)
+
         elif self.rB_tscan.isChecked():
             xas_pos = I1/I0
             xas_neg = I2/I0
@@ -243,18 +250,19 @@ class Ui(qt.QMainWindow):
             df = {
                 'pos': np.array([]),
                 'neg': np.array([]),
+                'diff': np.array([]),
                 'err': np.array([])
                 }
             for dly in edelays:
                 sel = np.where(np.abs(delays_all - dly) < 1)
                 df['pos'] = np.append(df['pos'],xas_pos[sel].mean())
                 df['neg'] = np.append(df['neg'],xas_neg[sel].mean())
-                df['err'] = np.append(df['err'],np.sqrt((_yerror[sel]**2).sum())/math.sqrt(xas_pos[sel].shape[0]))
+                df['diff'] = np.append(df['diff'],(xas_pos[sel]-xas_neg[sel]).mean())
+                df['err'] = np.append(df['err'],np.std(xas_pos[sel]-xas_neg[sel])/math.sqrt(xas_pos[sel].shape[0]))
             
-            self.plot_xas.addCurve(edelays, df['pos'], legend="pos", symbol = 'x',color='red')
-            self.plot_xas.addCurve(edelays, df['neg'], legend="neg", symbol = 'x',color='blue')
-            #self.plot_xas.addCurve(edelays, df['pos']-df['neg'], legend="diff",yaxis='right', symbol = 'o',yerror=df['err'])
-            self.plot_xas.addCurve(edelays, df['pos']-df['neg'], legend="diff",yaxis='right', symbol = 'o')
+            self.plot_xas.addCurve(edelays, df['pos'], legend="pos", symbol = 'x')
+            self.plot_xas.addCurve(edelays, df['neg'], legend="neg", symbol = 'x')
+            self.plot_xas.addCurve(edelays, df['diff'], legend="diff",yaxis='right', symbol = 'o',yerror=df['err'])
             self.plot_xas.setGraphXLabel('delay [ps]')
 
     def plot_each_XANES(self):
@@ -274,8 +282,8 @@ class Ui(qt.QMainWindow):
         I1 = Fdat[self.Ipos].values
         I2 = Fdat[self.Ineg].values
 
-        self.plot_xas_each.addCurve(energy, I1/I0,legend='pos', symbol = 'x',color='red')
-        self.plot_xas_each.addCurve(energy, I2/I0,legend='neg', symbol = 'x',color='blue')
+        self.plot_xas_each.addCurve(energy, I1/I0,legend='pos', symbol = 'x')
+        self.plot_xas_each.addCurve(energy, I2/I0,legend='neg', symbol = 'x')
         self.plot_xas_each.addCurve(energy, I1/I0-I2/I0,legend='diff',yaxis='right', symbol = 'o')
         self.plotI0.addCurve(energy, I0,linewidth=1.5)
         _xlabel = self.rB_escan.isChecked()*'Energy [eV]' + self.rB_tscan.isChecked()*'delay [ps]'
@@ -303,7 +311,7 @@ class Ui(qt.QMainWindow):
             msg.setIcon(qt.QMessageBox.Information)
             msg.setText("auto-updating started")
             msg.setStandardButtons(qt.QMessageBox.Ok)
-            qt.QTimer.singleShot(10000, lambda : msg.done(0))
+            qt.QTimer.singleShot(1000, lambda : msg.done(0))
             msg.exec_()
 
     def timerEvent(self, e):
@@ -349,7 +357,6 @@ class Ui(qt.QMainWindow):
                     self.func_pB11()
                     _rbs = self.rbs.buttons()
                     _rbs[-1].toggle()
-                    self.counter = 0
                 elif self.counter >= countlimit:
                     msg = qt.QMessageBox()
                     msg.setIcon(qt.QMessageBox.Warning)
