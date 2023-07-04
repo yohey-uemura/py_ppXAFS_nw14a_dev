@@ -45,7 +45,10 @@ class Ui(qt.QMainWindow):
         layout2.addWidget(self.plot_xas_each)
 
         self.scroll_layout = qt.QVBoxLayout()
-        self.scrollArea.setLayout(self.scroll_layout)
+        self.scrollWidget = qt.QWidget()
+        self.scrollWidget.setLayout(self.scroll_layout)
+
+        self.scrollArea.setWidget(self.scrollWidget)
 
         self.sumI0 = []
         self.sumI1= []
