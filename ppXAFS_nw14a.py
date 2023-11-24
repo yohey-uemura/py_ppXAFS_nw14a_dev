@@ -13,6 +13,7 @@ import time
 import silx.gui.colors as silxcolors
 from silx.gui.plot import PlotWindow, Plot1D, Plot2D, PlotWidget,items
 import silx.gui.colors as silxcolors
+import silx.io as silxIO
 
 countlimit = 1e3
 _t = 1000
@@ -107,6 +108,14 @@ class Ui(qt.QMainWindow):
                     finfo = qt.QFileInfo(files[0][0])
                     self.lineEdit.clear()
                     self.lineEdit.setText(finfo.path())
+                    self.textBrowser.clear()
+
+                    try:
+                        _header = re.match(r'([a-z]+|[A-Z]+)', os.path.basename(files[0][0])).group(0)
+                    except Exception as e:
+                        _header = "__No_header__"
+                    self.textBrowser.append(_header)
+
                     for fname in natsort.natsorted(files[0]):
                         info = qt.QFileInfo(fname)
                         cb = qt.QCheckBox(info.fileName())
@@ -139,8 +148,27 @@ class Ui(qt.QMainWindow):
         self.pushButton.clicked.connect(openFiles)
         self.pushButton_2.clicked.connect(selectDir)
         self.checkBox.toggled.connect(self.DoAction)
+        self.pushButton_3.clicked.connect(self.saveData)
         self.show()
-        
+
+    def saveData(self):
+        if self.plot_xas.getCurve() and os.path.isdir(self.lineEdit.text()):
+            df = {}
+            xaxis= self.rB_tscan.isChecked()*('delay/ps')+self.rB_escan.isChecked()*('Energy/eV')
+            for _legend in ['pos','neg','diff']:
+                curve = self.plot_xas.getCurve(legend=_legend)
+                _d = curve.getData()
+                if _legend == 'pos':
+                    df[xaxis] = _d[0]
+                df[_legend] = _d[1]
+                if _legend == 'diff':
+                    df[f'err_{_legend}'] = _d[-1]
+            pd.DataFrame(df)[[xaxis,'pos','neg','diff',f'err_{_legend}']].to_csv(f'{self.lineEdit.text()}/{self.textBrowser.toPlainText()}_avg.csv',
+                        index=False,sep=' '
+                        )
+            silxIO.save1D(f'{self.lineEdit.text()}/{self.textBrowser.toPlainText()}_avg.spec',df[xaxis], [df['pos'],df['neg'],df['diff'],df['err_diff']],filetype='spec',csvdelim=' ',
+                          xlabel=xaxis, ylabels=['pos','neg','diff',f'err_{_legend}'])
+
     def extract_data(self):
         sumI0 = np.zeros(0)
         sumI1 = np.zeros(0)
@@ -243,6 +271,7 @@ class Ui(qt.QMainWindow):
             
             self.plot_xas.addCurve(energy, diff_xas, legend="diff",yaxis='right', symbol = 'o',yerror=err_diff_xas)
             self.plot_xas.setGraphXLabel('Energy [eV]')
+
 
         elif self.rB_tscan.isChecked():
             xas_pos = I1/I0
