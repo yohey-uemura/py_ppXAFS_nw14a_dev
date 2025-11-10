@@ -145,6 +145,15 @@ class Ui(qt.QMainWindow):
             #     self.plotXANES(params.sumI0, params.sumI1, params.sumI2, params.energy)
             #     params.rbs.buttons()[0].toggle()
 
+
+        def calc_duration():
+            val = self.doubleSpinBox.value()*self.spinBox_3.value()
+            self.lcdNumber.display(round(val/3600,1))
+
+        self.doubleSpinBox.valueChanged.connect(calc_duration)
+        self.spinBox_3.valueChanged.connect(calc_duration)
+                
+            
         self.pushButton.clicked.connect(openFiles)
         self.pushButton_2.clicked.connect(selectDir)
         self.checkBox.toggled.connect(self.DoAction)
@@ -332,7 +341,9 @@ class Ui(qt.QMainWindow):
             msg.setStandardButtons(qt.QMessageBox.Ok)
             msg.exec_()
         else:
-            self.qtimer.start(_t,self)
+            self.countlimit = self.spinBox_3.value()
+            self._t = self.doubleSpinBox.value()
+            self.qtimer.start(int(self._t*1000),self)
             self.counter = 0
             while self.scroll_layout.count() >0:
                 b = self.scroll_layout.takeAt(len(self.cbs)-1)
@@ -355,12 +366,12 @@ class Ui(qt.QMainWindow):
             # print (files)
             
             try:
-                if len(files[:-1]) < 1 and self.counter < countlimit:
+                if len(files[:-1]) < 1 and self.counter < self.countlimit:
                     self.counter += 1
                     # print ("No file found")
                     if self.counter%100 == 0:
                         print (self.counter)
-                elif len(files[:-1]) >= 1 and len(files[:-1]) > n_datfiles and self.counter < countlimit:
+                elif len(files[:-1]) >= 1 and len(files[:-1]) > n_datfiles and self.counter < self.countlimit:
                     self.sumI0 = []
                     self.sumI1 = []
                     self.sumI2 = []
@@ -389,7 +400,7 @@ class Ui(qt.QMainWindow):
                     self.func_pB11()
                     _rbs = self.rbs.buttons()
                     _rbs[-1].toggle()
-                elif self.counter >= countlimit:
+                elif self.counter >= self.countlimit:
                     msg = qt.QMessageBox()
                     msg.setIcon(qt.QMessageBox.Warning)
                     msg.setText("Files are not created/updated.")
