@@ -332,19 +332,20 @@ class Ui(qt.QMainWindow):
         self.plotI0.setGraphXLabel(_xlabel)
 
     def DoAction(self):
-
-        if (not self.checkBox.isChecked()) and self.qtimer.isActive():
+        if self.qtimer.isActive():
             self.qtimer.stop()
             msg = qt.QMessageBox()
             msg.setIcon(qt.QMessageBox.Information)
             msg.setText("auto-updating finished")
             msg.setStandardButtons(qt.QMessageBox.Ok)
             msg.exec_()
-        else:
+        elif self.checkBox.isChecked() and not self.qtimer.isActive():
             self.countlimit = self.spinBox_3.value()
             self._t = self.doubleSpinBox.value()
             self.qtimer.start(int(self._t*1000),self)
             self.counter = 0
+            self.progressBar.setMaximum(self.countlimit)
+            self.progressBar.setValue(self.counter)
             while self.scroll_layout.count() >0:
                 b = self.scroll_layout.takeAt(len(self.cbs)-1)
                 self.cbs.pop()
@@ -355,6 +356,13 @@ class Ui(qt.QMainWindow):
             msg.setText("auto-updating started")
             msg.setStandardButtons(qt.QMessageBox.Ok)
             qt.QTimer.singleShot(1000, lambda : msg.done(0))
+            msg.exec_()
+        else:
+            self.qtimer.stop()
+            msg = qt.QMessageBox()
+            msg.setIcon(qt.QMessageBox.Information)
+            msg.setText("auto-updating finished")
+            msg.setStandardButtons(qt.QMessageBox.Ok)
             msg.exec_()
 
     def timerEvent(self, e):
@@ -368,6 +376,7 @@ class Ui(qt.QMainWindow):
             try:
                 if len(files[:-1]) < 1 and self.counter < self.countlimit:
                     self.counter += 1
+                    self.progressBar.setValue(self.counter)
                     # print ("No file found")
                     if self.counter%100 == 0:
                         print (self.counter)
@@ -410,6 +419,7 @@ class Ui(qt.QMainWindow):
                     self.checkBox.setCheckState(False)
                 else:
                     self.counter += 1
+                    self.progressBar.setValue(self.counter)
                     # print ("No file found")
                     print ("Files were not updated")
                     if self.counter%100 == 0:

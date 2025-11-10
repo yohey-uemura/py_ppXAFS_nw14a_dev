@@ -79,7 +79,7 @@
    <property name="minimumSize">
     <size>
      <width>1782</width>
-     <height>215</height>
+     <height>247</height>
     </size>
    </property>
    <attribute name="dockWidgetArea">
@@ -372,6 +372,13 @@
             </widget>
            </item>
           </layout>
+         </widget>
+        </item>
+        <item>
+         <widget class="QProgressBar" name="progressBar">
+          <property name="value">
+           <number>24</number>
+          </property>
          </widget>
         </item>
        </layout>
