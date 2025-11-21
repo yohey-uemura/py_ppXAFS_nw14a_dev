@@ -23,7 +23,7 @@ class Ui(qt.QMainWindow):
         super(Ui, self).__init__() # Call the inherited classes __init__ metho
         uic.loadUi('MainWindow.ui', self)
 
-        self.plot_xas = PlotWindow(control = True)
+        self.plot_xas = Plot1D()
         print (self.plot_xas.getConsoleAction())
         layout = qt.QVBoxLayout()
         self.widget.setLayout(layout)
@@ -111,7 +111,7 @@ class Ui(qt.QMainWindow):
                     self.textBrowser.clear()
 
                     try:
-                        _header = re.match(r'([a-z]+|[A-Z]+)', os.path.basename(files[0][0])).group(0)
+                        _header = re.match(r'([a-z]+\d*|[A-Z]+\d*)', os.path.basename(files[0][0])).group(0)
                     except Exception as e:
                         _header = "__No_header__"
                     self.textBrowser.append(_header)
@@ -262,8 +262,12 @@ class Ui(qt.QMainWindow):
     def plotXANES(self, I0, I1, I2, arr_xas_on, arr_xas_off, energy):
         self.plot_xas.remove(kind=('curve'))
         datdir = self.lineEdit.text()
+        header = self.textBrowser.toPlainText()
         # print (os.path.basename(datdir))
-        self.plot_xas.setGraphTitle(os.path.basename(datdir))
+        if header == "__No_header__":
+            self.plot_xas.setGraphTitle(os.path.basename(datdir))
+        else:
+            self.plot_xas.setGraphTitle(header)
         if self.rB_escan.isChecked():
             xas_pos = I1/I0
             xas_pos = (xas_pos-xas_pos[:self.spinBox.value()].mean())/(xas_pos[-self.spinBox.value():].mean()-xas_pos[:self.spinBox.value()].mean()) if self.cb_normalise.isChecked() \
@@ -281,8 +285,10 @@ class Ui(qt.QMainWindow):
             diff_xas = each_xas_on_norm.mean(axis=0) - each_xas_off_norm.mean(axis=0) if self.cb_normalise.isChecked() \
                         else xas_pos - xas_neg
             err_diff_xas = np.std(each_xas_on_norm - each_xas_off_norm,axis=0)/np.sqrt(each_xas_on_norm.shape[0]) if self.cb_normalise.isChecked() \
-                        else np.std(arr_xas_on - arr_xas_off)/math.sqrt(arr_xas_on.shape[0])
-            
+                        else np.std(arr_xas_on - arr_xas_off,axis=0)/math.sqrt(arr_xas_on.shape[0])
+
+            print (each_xas_on_norm)
+
             self.plot_xas.addCurve(energy, diff_xas, legend="diff",yaxis='right', symbol = 'o',yerror=err_diff_xas)
             self.plot_xas.setGraphXLabel('Energy [eV]')
 
