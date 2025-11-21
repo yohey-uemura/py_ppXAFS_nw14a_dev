@@ -159,6 +159,7 @@ class Ui(qt.QMainWindow):
         self.checkBox.toggled.connect(self.DoAction)
         self.pushButton_3.clicked.connect(self.saveData)
         self.cb_normalise.clicked.connect(self.func_pB11)
+        self.pushButton_4.clicked.connect(self.func_pB11)
         self.show()
 
     def saveData(self):
@@ -173,10 +174,11 @@ class Ui(qt.QMainWindow):
                 df[_legend] = _d[1]
                 if _legend == 'diff':
                     df[f'err_{_legend}'] = _d[-1]
-            pd.DataFrame(df)[[xaxis,'pos','neg','diff',f'err_{_legend}']].to_csv(f'{self.lineEdit.text()}/{self.textBrowser.toPlainText()}_avg.csv',
+            atxt = '' if self.cb_normalise.isChecked() else '_raw'
+            pd.DataFrame(df)[[xaxis,'pos','neg','diff',f'err_{_legend}']].to_csv(f'{self.lineEdit.text()}/{self.textBrowser.toPlainText()}_avg{atxt}.csv',
                         index=False,sep=' '
                         )
-            silxIO.save1D(f'{self.lineEdit.text()}/{self.textBrowser.toPlainText()}_avg.spec',df[xaxis], [df['pos'],df['neg'],df['diff'],df['err_diff']],filetype='spec',csvdelim=' ',
+            silxIO.save1D(f'{self.lineEdit.text()}/{self.textBrowser.toPlainText()}_avg{atxt}.spec',df[xaxis], [df['pos'],df['neg'],df['diff'],df['err_diff']],filetype='spec',csvdelim=' ',
                           xlabel=xaxis, ylabels=['pos','neg','diff',f'err_{_legend}'])
 
     def extract_data(self):
@@ -270,24 +272,26 @@ class Ui(qt.QMainWindow):
             self.plot_xas.setGraphTitle(header)
         if self.rB_escan.isChecked():
             xas_pos = I1/I0
-            xas_pos = (xas_pos-xas_pos[:self.spinBox.value()].mean())/(xas_pos[-self.spinBox.value():].mean()-xas_pos[:self.spinBox.value()].mean()) if self.cb_normalise.isChecked() \
+            b_ll, b_ul = self.spinBox.value(), self.spinBox_4.value()
+            a_ll, a_ul = self.spinBox_2.value(), self.spinBox_5.value()
+            xas_pos = (xas_pos-xas_pos[b_ll:b_ul].mean())/(xas_pos[-a_ll:-a_ul].mean()-xas_pos[b_ll:b_ul].mean()) if self.cb_normalise.isChecked() \
                         else xas_pos
 
             xas_neg = I2/I0
-            xas_neg = (xas_neg-xas_neg[:self.spinBox.value()].mean())/(xas_neg[-self.spinBox.value():].mean()-xas_neg[:self.spinBox.value()].mean()) if self.cb_normalise.isChecked() \
+            xas_neg = (xas_neg-xas_neg[b_ll:b_ul].mean())/(xas_neg[-a_ll:-a_ul].mean()-xas_neg[b_ll:b_ul].mean()) if self.cb_normalise.isChecked() \
                         else xas_neg
             self.plot_xas.addCurve(energy, xas_pos,legend="pos", symbol = 'x')
             self.plot_xas.addCurve(energy, xas_neg, legend="neg", symbol = 'x')
 
-            each_xas_on_norm = (arr_xas_on-np.vstack(arr_xas_on[:,:self.spinBox.value()].mean(axis=1)))/np.vstack(arr_xas_on[:,-self.spinBox.value():].mean(axis=1)-arr_xas_on[:,:self.spinBox.value()].mean(axis=1))
-            each_xas_off_norm = (arr_xas_off-np.vstack(arr_xas_off[:,:self.spinBox.value()].mean(axis=1)))/np.vstack(arr_xas_off[:,-self.spinBox.value():].mean(axis=1)-arr_xas_off[:,:self.spinBox.value()].mean(axis=1))
+            each_xas_on_norm = (arr_xas_on-np.vstack(arr_xas_on[:,b_ll:b_ul].mean(axis=1)))/np.vstack(arr_xas_on[:,-a_ll:-a_ul].mean(axis=1)-arr_xas_on[:,b_ll:b_ul].mean(axis=1))
+            each_xas_off_norm = (arr_xas_off-np.vstack(arr_xas_off[:,b_ll:b_ul].mean(axis=1)))/np.vstack(arr_xas_off[:,-a_ll:-a_ul].mean(axis=1)-arr_xas_off[:,b_ll:b_ul].mean(axis=1))
 
             diff_xas = each_xas_on_norm.mean(axis=0) - each_xas_off_norm.mean(axis=0) if self.cb_normalise.isChecked() \
                         else xas_pos - xas_neg
             err_diff_xas = np.std(each_xas_on_norm - each_xas_off_norm,axis=0)/np.sqrt(each_xas_on_norm.shape[0]) if self.cb_normalise.isChecked() \
                         else np.std(arr_xas_on - arr_xas_off,axis=0)/math.sqrt(arr_xas_on.shape[0])
 
-            print (each_xas_on_norm)
+            # print (each_xas_on_norm)
 
             self.plot_xas.addCurve(energy, diff_xas, legend="diff",yaxis='right', symbol = 'o',yerror=err_diff_xas)
             self.plot_xas.setGraphXLabel('Energy [eV]')
