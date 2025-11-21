@@ -158,6 +158,7 @@ class Ui(qt.QMainWindow):
         self.pushButton_2.clicked.connect(selectDir)
         self.checkBox.toggled.connect(self.DoAction)
         self.pushButton_3.clicked.connect(self.saveData)
+        self.cb_normalise.clicked.connect(self.func_pB11)
         self.show()
 
     def saveData(self):
@@ -265,18 +266,22 @@ class Ui(qt.QMainWindow):
         self.plot_xas.setGraphTitle(os.path.basename(datdir))
         if self.rB_escan.isChecked():
             xas_pos = I1/I0
-            xas_pos = (xas_pos-xas_pos[:self.spinBox.value()].mean())/(xas_pos[-self.spinBox.value():].mean()-xas_pos[:self.spinBox.value()].mean())
+            xas_pos = (xas_pos-xas_pos[:self.spinBox.value()].mean())/(xas_pos[-self.spinBox.value():].mean()-xas_pos[:self.spinBox.value()].mean()) if self.cb_normalise.isChecked() \
+                        else xas_pos
 
             xas_neg = I2/I0
-            xas_neg = (xas_neg-xas_neg[:self.spinBox.value()].mean())/(xas_neg[-self.spinBox.value():].mean()-xas_neg[:self.spinBox.value()].mean())
+            xas_neg = (xas_neg-xas_neg[:self.spinBox.value()].mean())/(xas_neg[-self.spinBox.value():].mean()-xas_neg[:self.spinBox.value()].mean()) if self.cb_normalise.isChecked() \
+                        else xas_neg
             self.plot_xas.addCurve(energy, xas_pos,legend="pos", symbol = 'x')
             self.plot_xas.addCurve(energy, xas_neg, legend="neg", symbol = 'x')
 
             each_xas_on_norm = (arr_xas_on-np.vstack(arr_xas_on[:,:self.spinBox.value()].mean(axis=1)))/np.vstack(arr_xas_on[:,-self.spinBox.value():].mean(axis=1)-arr_xas_on[:,:self.spinBox.value()].mean(axis=1))
             each_xas_off_norm = (arr_xas_off-np.vstack(arr_xas_off[:,:self.spinBox.value()].mean(axis=1)))/np.vstack(arr_xas_off[:,-self.spinBox.value():].mean(axis=1)-arr_xas_off[:,:self.spinBox.value()].mean(axis=1))
 
-            diff_xas = each_xas_on_norm.mean(axis=0) - each_xas_off_norm.mean(axis=0)
-            err_diff_xas = np.std(each_xas_on_norm - each_xas_off_norm,axis=0)/np.sqrt(each_xas_on_norm.shape[0])
+            diff_xas = each_xas_on_norm.mean(axis=0) - each_xas_off_norm.mean(axis=0) if self.cb_normalise.isChecked() \
+                        else xas_pos - xas_neg
+            err_diff_xas = np.std(each_xas_on_norm - each_xas_off_norm,axis=0)/np.sqrt(each_xas_on_norm.shape[0]) if self.cb_normalise.isChecked() \
+                        else np.std(arr_xas_on - arr_xas_off)/math.sqrt(arr_xas_on.shape[0])
             
             self.plot_xas.addCurve(energy, diff_xas, legend="diff",yaxis='right', symbol = 'o',yerror=err_diff_xas)
             self.plot_xas.setGraphXLabel('Energy [eV]')
@@ -305,6 +310,8 @@ class Ui(qt.QMainWindow):
             self.plot_xas.addCurve(edelays, df['neg'], legend="neg", symbol = 'x')
             self.plot_xas.addCurve(edelays, df['diff'], legend="diff",yaxis='right', symbol = 'o',yerror=df['err'])
             self.plot_xas.setGraphXLabel('delay [ps]')
+
+
 
     def plot_each_XANES(self):
         #self.Ipos, self.Ineg = [x.rstrip().replace(' ','') for x in self.u.lE_posneg.text().split(',')]

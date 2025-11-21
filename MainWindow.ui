@@ -226,61 +226,83 @@
          </widget>
         </item>
         <item>
-         <widget class="QGroupBox" name="groupBox_3">
-          <property name="title">
-           <string>normalisation</string>
+         <widget class="QFrame" name="frame_6">
+          <property name="frameShape">
+           <enum>QFrame::Box</enum>
           </property>
-          <layout class="QHBoxLayout" name="horizontalLayout_2">
+          <property name="frameShadow">
+           <enum>QFrame::Plain</enum>
+          </property>
+          <layout class="QVBoxLayout" name="verticalLayout_3">
            <item>
-            <widget class="QLabel" name="label_2">
+            <widget class="QCheckBox" name="cb_normalise">
              <property name="text">
-              <string>before</string>
+              <string>Nomalisation</string>
+             </property>
+             <property name="checked">
+              <bool>true</bool>
              </property>
             </widget>
            </item>
            <item>
-            <widget class="QSpinBox" name="spinBox">
-             <property name="minimumSize">
-              <size>
-               <width>50</width>
-               <height>0</height>
-              </size>
+            <widget class="QGroupBox" name="groupBox_3">
+             <property name="title">
+              <string>normalisation</string>
              </property>
-             <property name="minimum">
-              <number>1</number>
-             </property>
-             <property name="maximum">
-              <number>20</number>
-             </property>
-             <property name="value">
-              <number>5</number>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QLabel" name="label_3">
-             <property name="text">
-              <string>after</string>
-             </property>
-            </widget>
-           </item>
-           <item>
-            <widget class="QSpinBox" name="spinBox_2">
-             <property name="minimumSize">
-              <size>
-               <width>50</width>
-               <height>0</height>
-              </size>
-             </property>
-             <property name="minimum">
-              <number>1</number>
-             </property>
-             <property name="maximum">
-              <number>20</number>
-             </property>
-             <property name="value">
-              <number>5</number>
-             </property>
+             <layout class="QHBoxLayout" name="horizontalLayout_2">
+              <item>
+               <widget class="QLabel" name="label_2">
+                <property name="text">
+                 <string>before</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="spinBox">
+                <property name="minimumSize">
+                 <size>
+                  <width>50</width>
+                  <height>0</height>
+                 </size>
+                </property>
+                <property name="minimum">
+                 <number>1</number>
+                </property>
+                <property name="maximum">
+                 <number>20</number>
+                </property>
+                <property name="value">
+                 <number>5</number>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QLabel" name="label_3">
+                <property name="text">
+                 <string>after</string>
+                </property>
+               </widget>
+              </item>
+              <item>
+               <widget class="QSpinBox" name="spinBox_2">
+                <property name="minimumSize">
+                 <size>
+                  <width>50</width>
+                  <height>0</height>
+                 </size>
+                </property>
+                <property name="minimum">
+                 <number>1</number>
+                </property>
+                <property name="maximum">
+                 <number>20</number>
+                </property>
+                <property name="value">
+                 <number>5</number>
+                </property>
+               </widget>
+              </item>
+             </layout>
             </widget>
            </item>
           </layout>
@@ -534,8 +556,8 @@
      <y>101</y>
     </hint>
     <hint type="destinationlabel">
-     <x>893</x>
-     <y>61</y>
+     <x>879</x>
+     <y>85</y>
     </hint>
    </hints>
   </connection>
@@ -584,6 +606,22 @@
     <hint type="destinationlabel">
      <x>1713</x>
      <y>153</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>cb_normalise</sender>
+   <signal>clicked(bool)</signal>
+   <receiver>groupBox_3</receiver>
+   <slot>setEnabled(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>1331</x>
+     <y>105</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>1311</x>
+     <y>124</y>
     </hint>
    </hints>
   </connection>
